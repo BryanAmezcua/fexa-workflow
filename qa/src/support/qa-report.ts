@@ -839,6 +839,149 @@ export const TANGO_78_PR_AC = {
 } as const satisfies Record<string, AcClause>;
 
 /**
+ * Verbatim AC clauses for TANGO-86 (Hidden invoice/proposal permissions
+ * bypass via direct link access). Captured directly from the ticket at the
+ * time tests were written.
+ *
+ * Fix under test (merged to develop, PR #7110 + follow-up 34b03ef84a): the
+ * four invoice/quote show actions load through
+ * accessible_by(current_ability).eager_load([...unchanged tree...])
+ * .find(params[:id]) with skip_load_resource only: [:show], plus an explicit
+ * authorize! :show on the loaded record (the follow-up restored
+ * instance_methods-rule enforcement the first commit dropped).
+ *
+ * Scope note (OQ1 resolved at QA-write time): the ticket says "3 controllers
+ * — + confirm third"; the merged fix covers FOUR controllers — subcontractor
+ * invoices, subcontractor quotes, client invoices, client quotes — and the
+ * suite tests all four.
+ *
+ * Behavior asymmetry discovered at QA-write time (matches merged Minitest):
+ * an sql_string-hidden record returns the missing_record body (HTTP 200); a
+ * DENYING instance_methods rule returns 401, because sql filters bite via
+ * accessible_by while instance rules bite via authorize!.
+ *
+ * The admin Playwright persona is a super_admin whose ability overrides
+ * enforcement, so every denial scenario is exercised as seeded restricted
+ * users via Doorkeeper bearer tokens (TANGO-49 pattern) + seed-recorded
+ * accessible_by model checks — never via the admin session.
+ *
+ * Markdown checkbox markers ("[ ]") and backticks from the ticket source are
+ * dropped to match the plain-text convention of the other AC constants;
+ * wording, quotes, and em-dashes are otherwise preserved verbatim.
+ *
+ * Source: https://facilitiesexchange.atlassian.net/browse/TANGO-86
+ */
+export const TANGO_86_AC = {
+  DirectLink1: {
+    ref: 'Direct-link enforcement #1',
+    text: 'A user whose permission group hides a subcontractor invoice/proposal via SQL-string filter cannot load the record through its show endpoint / direct link',
+  },
+  DirectLink2: {
+    ref: 'Direct-link enforcement #2',
+    text: 'Enforcement applies to all affected invoice/proposal show controllers identified in the spike (3 controllers — subcontractor invoices, subcontractor quotes/proposals, + confirm third)',
+  },
+  Response1: {
+    ref: 'Response behavior #1',
+    text: 'A hidden record ID raises RecordNotFound, and error_catcher returns { error, error_code: "missing_record", success: false } (HTTP 200 per application_controller.rb:299-323) — identical to current work order show behavior',
+  },
+  Response2: {
+    ref: 'Response behavior #2',
+    text: 'Users with no read permission on the resource at all still receive 401 (class-level authorize_resource unchanged)',
+  },
+  Regression1: {
+    ref: 'Regression guard #1',
+    text: 'Users whose permission groups do NOT hide the record can still open it by direct link, with the full existing response payload (eager_load tree untouched)',
+  },
+  Regression2: {
+    ref: 'Regression guard #2',
+    text: 'Grid/index behavior is unchanged — records hidden today stay hidden; visible records still appear',
+  },
+  Regression3: {
+    ref: 'Regression guard #3',
+    text: 'create / update / destroy authorization behavior on the affected controllers is unchanged',
+  },
+  NonDisruptive1: {
+    ref: 'Non-disruptive #1',
+    text: "No change for customers/roles that don't use SQL-string visibility filters on invoices/proposals",
+  },
+} as const satisfies Record<string, AcClause>;
+
+/**
+ * Verbatim AC clauses for TANGO-85 (DG | Site Config: Extend "Default Hidden
+ * Work Order Types" setting to Assignments, Invoices & Proposals grids).
+ * Captured directly from the ticket at the time tests were written.
+ *
+ * Fix under test (merged to develop, PR #7105, merge 8d432157c9): four new
+ * integer-array SSettings (default_hidden_{assignment,vendor_invoice,
+ * client_invoice,proposal}_types, send_to_gui:true) whose values the four Ext
+ * grid ContainerControllers read IN THE BROWSER and inject as a `not in`
+ * workflow-type store filter on default load. The backend PR only ADDED the
+ * `invoice_workflow_type_id` in/not-in filter capability to the three
+ * invoice/quote dynamic_index controllers (the Assignments filter already
+ * existed). There is NO server-side "read the setting and hide" logic.
+ *
+ * TERMINOLOGY in this codebase: "Vendor Invoices" = Invoices::SubcontractorInvoice;
+ * "Proposals" = Invoices::SubcontractorQuote; "Client Invoices" =
+ * Invoices::ClientInvoice; "Assignments" = Workorders::Assignment. Workflow
+ * "types" = Workflows::WorkflowType ids a record's current status points to.
+ *
+ * TWO-LAYER test strategy (see the spec header): Layer A asserts the backend
+ * dynamic_index filter contract over the API (deterministic); Layer B drives
+ * the real Ext grids to prove the frontend actually injects the filter from
+ * the setting on default load — using the PRODUCT-SEEDED values (Assignments
+ * populated with cancelled+rejected, invoice grids empty) so NO global
+ * SSetting mutation is needed.
+ *
+ * Markdown checkbox markers ("[ ]") and backticks from the ticket source are
+ * dropped to match the plain-text convention of the other AC constants;
+ * wording and identifiers are otherwise preserved verbatim.
+ *
+ * Source: https://facilitiesexchange.atlassian.net/browse/TANGO-85
+ */
+export const TANGO_85_AC = {
+  Seed1: {
+    ref: 'New site settings (seed) #1',
+    text: 'Four new site settings exist: default_hidden_assignment_types, default_hidden_vendor_invoice_types, default_hidden_client_invoice_types, default_hidden_proposal_types (final names pending PM confirmation), each an integer array sent to the GUI',
+  },
+  Seed2: {
+    ref: 'New site settings (seed) #2',
+    text: 'The Assignments setting seeds to the cancelled + rejected workflow-type IDs, preserving today\'s behavior; the other three seed empty',
+  },
+  Seed3: {
+    ref: 'New site settings (seed) #3',
+    text: "Seeds are guarded so re-running them never overwrites an admin's configured values",
+  },
+  DefaultLoad1: {
+    ref: 'Default grid load #1',
+    text: 'When a hidden-types setting is populated, records of those workflow types are excluded from the default load of the corresponding grid (Assignments, Vendor Invoices, Client Invoices, Proposals)',
+  },
+  DefaultLoad2: {
+    ref: 'Default grid load #2',
+    text: 'When a setting is empty, the grid loads exactly as it does today — an empty setting must never blank the grid',
+  },
+  DefaultLoad3: {
+    ref: 'Default grid load #3',
+    text: 'Hidden types reduce the records fetched on grid open (server-side exclusion, not client-side hiding)',
+  },
+  Surface1: {
+    ref: 'Users can still surface hidden records #1',
+    text: 'Applying a status/type filter on the grid surfaces the hidden records',
+  },
+  Surface2: {
+    ref: 'Users can still surface hidden records #2',
+    text: 'Hidden types remain fully available in reporting — no change to reporting behavior',
+  },
+  BackendFilter1: {
+    ref: 'Backend filter support #1',
+    text: 'The invoice/proposal endpoints support in / not in filtering on workflow type (mirroring the existing Assignments filter), used by the grids above',
+  },
+  NoRegression1: {
+    ref: 'No regression on Assignments #1',
+    text: 'The Assignments grid\'s default load is identical before and after this change (hard-coded array → setting swap is behavior-neutral)',
+  },
+} as const satisfies Record<string, AcClause>;
+
+/**
  * Attach ticket + AC metadata to the running test. The reporter parses
  * these annotations to group tests by ticket and render the verbatim AC.
  *
