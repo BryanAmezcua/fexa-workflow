@@ -1,8 +1,8 @@
-# TANGO
+# fexa-qa engine
 
-QA automation harness for Fexy-Zamo. Generates ticket-scoped Playwright suites that exercise the Fexa CMMS UI and emit self-contained HTML reports suitable for attaching to a JIRA ticket.
+QA automation engine for Fexy-Zamo. Generates ticket-scoped Playwright suites that exercise the Fexa CMMS UI and emit self-contained HTML reports suitable for attaching to a JIRA ticket.
 
-The expected entry point is the **`qa-ticket` Claude skill** — you point it at any Fexa JIRA ticket key (`TANGO-N`, `FIFI-N`, `FUN-N`, etc.) and it handles ticket parsing, AC extraction, seed design, test scaffolding, execution, and report generation end-to-end. Manual usage is also supported.
+The expected entry point is the **`fexa-qa` Claude skill** (`../fexa-qa/SKILL.md`, symlinked into `~/.claude/skills/`) — you point it at any Fexa JIRA ticket key (`TANGO-N`, `FIFI-N`, `FUN-N`, etc.) and it handles ticket parsing, AC extraction, seed design, test scaffolding, execution, and report generation end-to-end. Manual usage is also supported.
 
 ---
 
@@ -15,7 +15,7 @@ The expected entry point is the **`qa-ticket` Claude skill** — you point it at
 | **Fexy-Zamo checkout** | The Rails app under test | Default sibling path `../Fexy-Zamo`; override via `FEXY_ZAMO_PATH` |
 | **Running Rails server** | `localhost:3000` (or `TEST_BASE_URL`) reachable, redirecting to `/main/index` (fast mode) | Skill aborts if dev-mode is detected |
 | **Postgres + Redis + Elasticsearch** | Whatever Fexy-Zamo needs | Out of scope for this README — see Fexy-Zamo's own setup |
-| **Claude Code** with the **Atlassian MCP connector** | Used by the `qa-ticket` skill to fetch ticket details + comments | XML download is a fallback if the connector isn't connected |
+| **Claude Code** | Runs the `fexa-qa` skill; ticket fetch via the Atlassian MCP connector or the `jira-tickets` skill scripts | |
 | **Test accounts** in the target environment | Devise sign-in per persona (admin / vendor / facility-manager) | Credentials go in `.env` |
 
 Playwright's Chromium is installed automatically by `npm install` (the `@playwright/test` postinstall hook). If it skipped for any reason, run `npx playwright install chromium`.
@@ -25,8 +25,8 @@ Playwright's Chromium is installed automatically by `npm install` (the `@playwri
 ## Initial setup
 
 ```bash
-# 1. Clone next to your Fexy-Zamo checkout, then install deps
-cd ~/labs/TANGO
+# 1. From the fexa-workflow repo (bin/setup.sh does this for you)
+cd ~/work/fexa-workflow/qa
 npm install
 
 # 2. Configure test-account credentials
@@ -47,12 +47,11 @@ npm run test:admin -- --grep 'Vendor can navigate'   # fast smoke
 
 ## Recommended workflow — drive it through the Claude skill
 
-The `qa-ticket` skill lives at `.claude/skills/qa-ticket/SKILL.md` and is auto-discovered by Claude Code when this directory is the working tree. Invoke it with a JIRA ticket key from any pod:
+The `fexa-qa` skill lives at `../fexa-qa/SKILL.md` and is auto-discovered in every session via its symlink in `~/.claude/skills/`. Invoke it with a JIRA ticket key from any session:
 
 ```
-/qa-ticket TANGO-N
-/qa-ticket FIFI-N
-/qa-ticket FUN-N
+qa TANGO-N
+/fexa-qa FIFI-N
 ```
 
 The skill runs this pipeline:
@@ -75,7 +74,7 @@ Invocations the skill recognises:
 ```
 test TANGO-7
 qa ticket FIFI-12
-/qa-ticket FUN-9
+/fexa-qa FUN-9
 ```
 
 ---
@@ -125,7 +124,7 @@ npm run typecheck
 ## Project layout
 
 ```
-.claude/skills/qa-ticket/SKILL.md   The pipeline definition Claude executes for /qa-ticket
+../fexa-qa/SKILL.md                 The pipeline definition Claude executes (the fexa-qa skill)
 bin/
   fexa-fast-mode.sh                 Build Sencha bundle + patch routes.rb
   fexa-dev-mode.sh                  Revert

@@ -1,208 +1,123 @@
-# Fexa-AIden
+# fexa-workflow
 
-Junior/mid-level dev assistant for the Fexy-Zamo (Fexa CMMS) codebase. A Claude Code skill with three active modes for ticket triage and automated AC verification:
+Skills and tooling for Claude Code used across the Fexy-Zamo (Fexa CMMS) and
+fexa-pwa repos. This repo is the single source of truth — skills are symlinked
+into `~/.claude/skills/` so every Claude session on the machine discovers them
+automatically, whichever repo it's launched from.
 
-| Subcommand          | What it does                                                                                                         |
-|---|---|
-| `/Fexa-AIden list`              | Print a compact table of every ticket assigned to you across all open sprints.                          |
-| `/Fexa-AIden brief <TICKET>`    | Fetch a single ticket and render its description, comments, and metadata as readable markdown.          |
-| `/Fexa-AIden qa <TICKET> [...]` | Run the full QA pipeline end-to-end: fetch AC → plan with user → scaffold tests → run → visually verify screenshots → post results back to Jira. |
+## Layout
 
-A `spec` mode is planned — see `modes/spec.md` for the preserved conventions.
-
-## Installation
-
-The repo IS the skill — clone it directly into your Claude Code skills directory so Claude can discover it:
-
-```powershell
-git clone https://github.com/BryanAmezcua/Fexa-AIden.git $HOME\.claude\skills\Fexa-AIden
+```
+jira-tickets/      Skill: list open-sprint tickets + render a ticket brief
+  SKILL.md         Instructions (list + brief modes)
+  reference/       ADF→markdown rules; parked spec-mode conventions
+  scripts/         jira-*.sh REST helpers (config-driven, no secrets inside)
+fexa-qa/           Skill: ticket-scoped GUI QA pipeline for Fexy-Zamo
+  SKILL.md         The pipeline (fetch AC → seed → spec → run → verify → critique)
+qa/                The QA engine (native Playwright Test)
+  playwright.config.ts   Projects (admin/vendor/facility-manager) + reporters
+  tests/<area>/*.spec.ts One spec file per ticket; tests/_explore = throwaway
+  src/support/qa-report.ts   Verbatim AC constants + annotateAc/captureAcSnapshot
+  src/reporters/qa-report.ts Custom reporter → reports/latest/<TICKET>.html
+  seeds/*.rb       Idempotent rails-runner fixtures
+  bin/fexa-{fast,dev}-mode.sh  Toggle Fexy-Zamo fast vs dev mode
+config/config.env.example    Template for ~/.config/fexa-workflow/config.env
+bin/setup.sh       One-shot machine setup (config scaffold + symlinks + qa deps)
 ```
 
-If you cloned elsewhere first, move the working tree:
+Machine-specific files (never in this repo):
 
-```powershell
-Move-Item C:\path\to\Fexa-AIden $HOME\.claude\skills\
+```
+~/.config/fexa-workflow/config.env    JIRA_EMAIL, JIRA_HOST, repo paths
+~/.config/fexa-workflow/jira-token    Jira API token, one line, chmod 600
+~/.claude/skills/{jira-tickets,fexa-qa}   symlinks into this repo
+qa/.env, qa/auth/                     test-account creds + session state (gitignored)
 ```
 
-The `.git/` directory rides along, so the GitHub remote stays connected.
+## New machine setup
 
-## Setup (one-time, after install)
+Everything happens **inside WSL** (Ubuntu). Repos must live on ext4 (`~/work`),
+never under `/mnt/c` — node_modules/Playwright/Sencha are slow and flaky across
+the Windows↔WSL boundary.
 
 ```bash
-cd $HOME/.claude/skills/Fexa-AIden
+# 0. Prereqs (once per machine)
+sudo apt update && sudo apt install -y jq git curl
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+# restart shell, then:
+nvm install 20
 
-# 1. Install Node deps + Playwright Chromium
-npm install
-npx playwright install chromium
+# 1. Install Claude Code (native installer, lands in ~/.local/bin)
+curl -fsSL https://claude.ai/install.sh | bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+claude --version   # log in on first launch
 
-# 2. Add your Jira API token (gitignored; never commit)
-#    Generate at: https://id.atlassian.com/manage-profile/security/api-tokens
-#    Paste one line, no quotes:
-echo "<your-token>" > token
+# 2. This repo — skills + QA engine
+mkdir -p ~/work
+git clone https://github.com/BryanAmezcua/fexa-workflow.git ~/work/fexa-workflow
+bash ~/work/fexa-workflow/bin/setup.sh
+#    then fill in:
+#    ~/.config/fexa-workflow/config.env   # JIRA_EMAIL / JIRA_HOST / repo paths
+#    ~/.config/fexa-workflow/jira-token   # paste token from id.atlassian.com/manage-profile/security/api-tokens
+#    qa/.env                              # test-account creds (fexa-qa machines only)
 
-# 3. Copy and edit the env file
-cp .env.example .env
-# Edit .env to set QA_EMAIL, QA_PASSWORD (Devise creds for local Rails),
-# and RAILS_ROOT if Fexy-Zamo is not at /home/<user>/Fexy-Zamo
+# 3. Work repos (clone whichever this machine needs)
+git clone https://github.com/facilitiesexchange/Fexy-Zamo.git ~/work/Fexy-Zamo
+git clone https://github.com/facilitiesexchange/fexa-pwa.git  ~/work/fexa-pwa
 ```
 
-Set `FEXA_AIDEN_ROOT` in your shell profile so the mode docs can reference it:
+Notes on the work repos:
 
-```powershell
-# PowerShell ($PROFILE):
-$env:FEXA_AIDEN_ROOT = "$HOME\.claude\skills\Fexa-AIden"
+- **Fexy-Zamo** (Rails 5.2 + Ext JS): follow its own README for the full app setup
+  (Ruby via rbenv, Postgres/Redis/Elasticsearch, `bin/dev`). The fexa-qa skill needs
+  it running on `localhost:3000`. Sencha Cmd 7.7.0.36 must be at `~/bin/Sencha/Cmd`
+  for fast-mode builds.
+- **fexa-pwa** (React 19 / Vite / TS): `cd ~/work/fexa-pwa && nvm use 20 && npm install`.
+  npm only — the preinstall hook enforces it.
+
+Optional: start every Claude session in bypass-permissions mode by adding to
+`~/.claude/settings.json`:
+
+```json
+{ "permissions": { "defaultMode": "bypassPermissions" } }
 ```
+
+**Update on any machine:** `git -C ~/work/fexa-workflow pull` — symlinked skills
+pick up changes immediately. Re-run `bin/setup.sh` only if new skills were added.
+
+## Daily use
 
 ```bash
-# WSL / Git Bash (.bashrc):
-export FEXA_AIDEN_ROOT="$HOME/.claude/skills/Fexa-AIden"
+wsl ~                       # or open Windows Terminal straight into WSL home
+cd ~/work/fexa-pwa          # or ~/work/Fexy-Zamo
+claude
 ```
 
-## Prerequisites
+The repo's CLAUDE.md + global rules + both skills load automatically — the first
+message is just the task:
 
-- **Node.js 18+**
-- **WSL with Ruby 2.7.8 + Rails** — for seed scripts (`lib/seeds.mjs` shells out via `wsl.exe`)
-- **Fexy-Zamo running on `localhost:3000` in fast-mode** — `qa` mode targets it directly
-- **`jq` installed in WSL** — `sudo apt install -y jq` (needed by `scripts/jira-*.sh`)
-- **Atlassian MCP connector** (optional) — `qa` mode prefers it for ticket fetch but falls back to the bash scripts
+- "what's in my sprint" / `/jira-tickets` → sprint table
+- "brief TANGO-9" → full ticket rendering
+- "qa TANGO-9" (from Fexy-Zamo work) → the full QA pipeline →
+  `qa/reports/latest/TANGO-9.html`
 
-## Manual usage (without the slash command)
+## Environment notes (WSL)
 
-The `qa` mode is just a structured wrapper around `run.mjs`. You can drive it directly:
-
-```bash
-cd $HOME/.claude/skills/Fexa-AIden
-
-# Local target, no Jira post-back
-node run.mjs TANGO-9
-
-# Custom target URL (e.g. staging)
-QA_BASE_URL=https://qa.fexa.io node run.mjs TANGO-9
-
-# With Jira post-back (comment + report attachment)
-node run.mjs TANGO-44 --post-to-jira
-
-# Preserve seed data after the run (for debugging)
-node run.mjs TANGO-44 --no-cleanup
-```
-
-Reports land at `reports/<TICKET>.html` as self-contained HTML.
-
-## Repo structure
-
-```
-Fexa-AIden/
-├── SKILL.md                   Top-level dispatcher (skill loader entry point)
-├── README.md                  This file
-├── package.json, .env.example, .gitignore
-│
-├── modes/                     Per-subcommand instructions, read by the dispatcher
-│   ├── list.md
-│   ├── brief.md
-│   ├── qa.md
-│   └── spec.md                NOT YET IMPLEMENTED — conventions archive
-│
-├── scripts/                   Bash helpers invoked by the modes
-│   ├── env-precheck.sh
-│   ├── jira-list.sh
-│   ├── jira-fetch.sh
-│   ├── jira-attachments.sh
-│   └── jira-download-attachment.sh
-│
-├── templates/
-│   └── ticket-template.mjs    Scaffold for new tickets/<KEY>.mjs files
-│
-├── lib/                       Node modules — Playwright + Jira + report generation
-│   ├── auth.mjs, browser.mjs, config.mjs, evidence.mjs, extjs.mjs,
-│   ├── import.mjs, jira.mjs, navigation.mjs, report.mjs,
-│   ├── screenshots.mjs        (focus-locator support added)
-│   ├── seeds.mjs, step-formatter.mjs
-│
-├── tickets/                   Per-ticket QA spec modules (one file per ticket)
-│   ├── TANGO-9.mjs, TANGO-44.mjs
-│
-├── tools/                     One-off cleanup scripts
-│
-├── run.mjs                    Manual CLI entry point
-│
-├── reports/                   Generated HTML reports               (gitignored)
-├── specs/                     Spec sheets from spec mode           (gitignored)
-├── auth/                      Persisted Devise sessions (planned)  (gitignored)
-├── _attachments/              Downloaded Jira attachments          (gitignored)
-└── token                      Jira API token (one line)            (gitignored)
-```
+- Everything runs in WSL on ext4 — `node_modules`, Playwright browsers, and Sencha
+  builds are slow/flaky across the Windows↔WSL filesystem boundary.
+- The QA engine drives the app on `http://localhost:3000` and runs seeds via
+  `bundle exec rails runner`, so rbenv Ruby must be on PATH (the fexa-qa SKILL.md
+  has the exact exports for non-interactive shells).
+- Fast mode is required for QA runs: dev-mode Sencha boots too slowly and tests
+  time out. `qa/bin/fexa-fast-mode.sh` flips it; `fexa-dev-mode.sh` reverts. The
+  Rails app must be restarted after either toggle.
 
 ## Conventions
 
-- **Branch naming**: `<TICKET-KEY>` (e.g. `TANGO-9`, `FIFI-12`), PRs target `develop`. Spec mode and qa mode both reference this convention.
-- **Verbatim AC text**: tests and specs preserve acceptance criteria exactly as written in the ticket, even when the ticket text later drifts.
-- **One report per ticket**: `reports/<TICKET>.html` — never combined.
-- **Visual verification**: a green test is necessary but not sufficient — every AC-evidence screenshot is checked by eye before declaring the ticket QA'd. See `modes/qa.md` step 8.
-- **No AI attribution in commits**: per global rules, never include `Co-Authored-By: Claude` or similar lines.
-
-## Writing a new ticket (for `qa` mode)
-
-When `qa` mode scaffolds `tickets/<KEY>.mjs` for a new ticket, it copies from `templates/ticket-template.mjs`. The structure:
-
-```js
-export const metadata = {
-  summary: 'Ticket title from Jira',
-  tester: 'Bryan',
-  branch: 'TANGO-9',
-  environment: 'Local Dev (WSL)',
-};
-
-// Verbatim AC clauses — typed constants, referenced by tests below.
-export const AC = {
-  Calculation1: { ref: 'Calculation #1', text: 'Verbatim text from ticket...' },
-  Display1:     { ref: 'Display #1',     text: 'Verbatim text from ticket...' },
-};
-
-export const seed = null;   // or a seed definition consumed by lib/seeds.mjs
-
-export const tests = [
-  {
-    ac: [AC.Calculation1, AC.Display1],
-    name: 'Domain-language scenario description',
-    run: async (page, step, screenshot) => {
-      step('Navigate to Administration > Pricings (persona=admin)');
-      await screenshot('before', { focus: page.locator('[name="base_price"]') });
-      step('Set base_price=150.00');
-      // ... AC-relevant action ...
-      await screenshot('after',  { focus: page.locator('[name="base_price"]') });
-    },
-  },
-];
-```
-
-Key rules:
-
-- `ac:` is an array of AC clause **objects** (not numbers).
-- `screenshot()` calls for AC evidence **require** a `focus` locator. The helper asserts visible + scrolls into view + captures the full viewport.
-- Step labels **include input values** so the test is reproducible by hand from the report.
-- Test names use domain language, never the ticket key.
-
-See `modes/qa.md` for the full pipeline and hard rules.
-
-## How the modes relate to the harness
-
-```
-/Fexa-AIden qa TANGO-9
-        │
-        ▼
-   SKILL.md dispatcher
-        │
-        ▼
-   modes/qa.md  ──► instructs Claude through the pipeline:
-        │            env-precheck → ticket fetch → plan → scaffold ticket
-        │            file from templates/ → node run.mjs → visual verify →
-        │            post to Jira → commit
-        │
-        ▼
-   node run.mjs TANGO-9   ◄── the existing Playwright harness
-        │
-        ▼
-   lib/* modules + tickets/TANGO-9.mjs   ──►  reports/TANGO-9.html
-```
-
-The slash command is the disciplined entry point. `node run.mjs` is the underlying engine you can also invoke directly.
+- Verbatim AC text in `qa/src/support/qa-report.ts` — never paraphrase.
+- Domain-language file/test names (`enforced-rate`, not `TANGO-5`).
+- `test.step()` labels include input values so a human can reproduce by hand.
+- Every positive-assertion `captureAcSnapshot` passes a `focus` locator.
+- Branch = `<TICKET-KEY>` off `develop`; PRs target `develop`.
+- Never commit `qa/.env`, `qa/auth/`, `qa/reports/`, or anything under
+  `~/.config/fexa-workflow/`.

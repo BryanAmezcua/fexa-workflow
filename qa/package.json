@@ -1,7 +1,7 @@
 {
-  "name": "tango",
+  "name": "fexa-qa",
   "version": "0.1.0",
-  "description": "QA automation harness for Fexy/Zamo — Playwright tests against local or QA environments.",
+  "description": "QA automation engine for Fexy-Zamo — Playwright tests against local or QA environments. Driven by the fexa-qa Claude skill.",
   "private": true,
   "scripts": {
     "test": "playwright test",
@@ -23,6 +23,8 @@
     "seed:nte-permission-inheritance": "cd ${FEXY_ZAMO_PATH:-../Fexy-Zamo} && DISABLE_SPRING=1 bundle exec rails runner \"$OLDPWD/seeds/nte-permission-inheritance.rb\"",
     "seed:pricing-resolution-once": "cd ${FEXY_ZAMO_PATH:-../Fexy-Zamo} && DISABLE_SPRING=1 bundle exec rails runner \"$OLDPWD/seeds/pricing-resolution-once.rb\"",
     "seed:assignment-nte-revert": "cd ${FEXY_ZAMO_PATH:-../Fexy-Zamo} && DISABLE_SPRING=1 bundle exec rails runner \"$OLDPWD/seeds/assignment-nte-revert.rb\"",
+    "seed:invoice-visibility-filters": "cd ${FEXY_ZAMO_PATH:-../Fexy-Zamo} && DISABLE_SPRING=1 bundle exec rails runner \"$OLDPWD/seeds/invoice-visibility-filters.rb\"",
+    "seed:default-hidden-grid-types": "cd ${FEXY_ZAMO_PATH:-../Fexy-Zamo} && DISABLE_SPRING=1 bundle exec rails runner \"$OLDPWD/seeds/default-hidden-grid-types.rb\"",
     "seed:all": "npm run seed:expired-pricing-indicator && npm run seed:pricing-overlap && npm run seed:approved-rate-reference && npm run seed:enforcement-toggle && npm run seed:enforced-rate && npm run seed:vendor-nte-mass-update && npm run seed:pricing-enforcement-reporting && npm run seed:pricing-enforcement-api && npm run seed:pricing-resolution-once && npm run seed:assignment-nte-revert",
     "fexa:fast-mode": "bash bin/fexa-fast-mode.sh",
     "fexa:dev-mode": "bash bin/fexa-dev-mode.sh",
