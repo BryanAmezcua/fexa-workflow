@@ -48,7 +48,7 @@ fi
 # 3. Skill symlinks — repo stays the single source of truth; git pull updates them
 SKILLS_DIR="$HOME/.claude/skills"
 mkdir -p "$SKILLS_DIR"
-for skill in jira-tickets fexa-qa; do
+for skill in jira-tickets fexa-qa pwa-pr-review; do
   link="$SKILLS_DIR/$skill"
   if [ -L "$link" ]; then
     ln -sfn "$ROOT/$skill" "$link"

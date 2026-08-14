@@ -14,6 +14,11 @@ jira-tickets/      Skill: list open-sprint tickets + render a ticket brief
   scripts/         jira-*.sh REST helpers (config-driven, no secrets inside)
 fexa-qa/           Skill: ticket-scoped GUI QA pipeline for Fexy-Zamo
   SKILL.md         The pipeline (fetch AC → seed → spec → run → verify → critique)
+pwa-pr-review/     Skill: agent-committee PR review for fexa-pwa
+  SKILL.md         The pipeline (scout → AC verify + lenses → refute → report → post)
+  SPEC.md          Design rationale and the rules behind it
+  reference/       The six lens prompts
+  scripts/         pr-context.sh, diff-anchors.py, post-review.py (gh + jq)
 qa/                The QA engine (native Playwright Test)
   playwright.config.ts   Projects (admin/vendor/facility-manager) + reporters
   tests/<area>/*.spec.ts One spec file per ticket; tests/_explore = throwaway
@@ -30,7 +35,8 @@ Machine-specific files (never in this repo):
 ```
 ~/.config/fexa-workflow/config.env    JIRA_EMAIL, JIRA_HOST, repo paths
 ~/.config/fexa-workflow/jira-token    Jira API token, one line, chmod 600
-~/.claude/skills/{jira-tickets,fexa-qa}   symlinks into this repo
+~/.claude/skills/{jira-tickets,fexa-qa,pwa-pr-review}   symlinks into this repo
+~/.cache/fexa-workflow/reviews/       PR review work dirs (diff, anchors, findings)
 qa/.env, qa/auth/                     test-account creds + session state (gitignored)
 ```
 
