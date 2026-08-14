@@ -25,6 +25,7 @@ from pathlib import Path
 
 SEV_ORDER = {"blocker": 0, "should-fix": 1, "nit": 2}
 SEV_LABEL = {"blocker": "Blockers", "should-fix": "Should fix", "nit": "Nits"}
+SEV_HEADER = {"blocker": "Blocker", "should-fix": "Should fix", "nit": "Nit"}
 
 
 def die(msg):
@@ -41,9 +42,11 @@ def load(work, name):
 
 
 def comment_body(f):
+    # Header reads as a sentence, not a log line — a human is reading this.
+    # The category stays in findings.json for grouping; it's noise in the comment.
     sev = f.get("severity", "should-fix")
-    cat = f.get("category", "review")
-    parts = [f"**[{sev} · {cat}]** {f.get('title', '').strip()}", "", f.get("body", "").strip()]
+    parts = [f"**{SEV_HEADER.get(sev, sev)} — {f.get('title', '').strip()}**", "",
+             f.get("body", "").strip()]
     if f.get("failure_scenario"):
         parts += ["", f"_Fails when:_ {f['failure_scenario'].strip()}"]
     if f.get("verdict") == "PLAUSIBLE":
