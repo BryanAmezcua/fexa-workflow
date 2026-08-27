@@ -3,10 +3,12 @@
 # One-shot machine setup for fexa-workflow. Run from anywhere, inside WSL:
 #   bin/setup.sh
 #
-# Does three things:
+# Does five things:
 #   1. Scaffolds ~/.config/fexa-workflow/ (config.env + jira-token placeholder)
-#   2. Symlinks the skills into ~/.claude/skills/ so Claude auto-discovers them
-#   3. Installs the QA engine's Node deps + Playwright chromium, scaffolds qa/.env
+#   2. Installs Claude global rules + settings (~/.claude/) if the machine has none
+#   3. Symlinks the skills into ~/.claude/skills/ so Claude auto-discovers them
+#   4. Clones the work repos (Fexy-Zamo, fexa-pwa) as siblings of this repo
+#   5. Installs the QA engine's Node deps + Playwright chromium, scaffolds qa/.env
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -44,6 +46,13 @@ if [ ! -f "$HOME/.claude/CLAUDE.md" ]; then
 else
   echo "[setup] ~/.claude/CLAUDE.md already exists — leaving it alone"
 fi
+if [ ! -f "$HOME/.claude/settings.json" ]; then
+  mkdir -p "$HOME/.claude"
+  cp "$ROOT/config/claude-settings.json" "$HOME/.claude/settings.json"
+  echo "[setup] installed Claude Code settings to ~/.claude/settings.json"
+else
+  echo "[setup] ~/.claude/settings.json already exists — leaving it alone (compare with config/claude-settings.json)"
+fi
 
 # 3. Skill symlinks — repo stays the single source of truth; git pull updates them
 SKILLS_DIR="$HOME/.claude/skills"
@@ -61,15 +70,30 @@ for skill in jira-tickets fexa-qa pwa-pr-review; do
   fi
 done
 
-# 4. QA engine deps
+# 4. Work repos — cloned as siblings of this repo (~/work/*). Private repos:
+#    git must be authenticated (gh auth login configures the credential helper).
+WORK_DIR="$(dirname "$ROOT")"
+for repo in facilitiesexchange/Fexy-Zamo facilitiesexchange/fexa-pwa; do
+  name="${repo##*/}"
+  dest="$WORK_DIR/$name"
+  if [ -d "$dest" ]; then
+    echo "[setup] $dest already exists — leaving it alone"
+  else
+    echo "[setup] cloning $repo -> $dest"
+    git clone "https://github.com/$repo.git" "$dest" \
+      || echo "[setup] WARNING: clone of $repo failed — authenticate first (gh auth login, then gh auth setup-git) and clone manually" >&2
+  fi
+done
+
+# 5. QA engine deps
 if ! command -v node >/dev/null 2>&1; then
   echo "[setup] ERROR: node not on PATH. Install Node 18+ in WSL." >&2; exit 1
 fi
 cd "$ROOT/qa"
 echo "[setup] installing qa/ deps (npm install)..."
 npm install
-echo "[setup] installing Playwright chromium..."
-npx playwright install chromium
+echo "[setup] installing Playwright chromium (+ system libs; may prompt for sudo)..."
+npx playwright install --with-deps chromium
 if [ ! -f .env ]; then
   cp .env.example .env
   echo "[setup] created qa/.env from .env.example"
@@ -81,8 +105,10 @@ cat <<'EOF'
 [setup] Done. Remaining manual steps:
   1) edit ~/.config/fexa-workflow/config.env    # JIRA_EMAIL / JIRA_HOST / repo paths
   2) paste Jira token into ~/.config/fexa-workflow/jira-token
-  3) edit qa/.env                               # TEST_BASE_URL + admin/vendor/facility-manager creds
-  4) (fexa-qa only) cd qa && npm run fexa:fast-mode, then restart Rails (overmind web)
+  3) edit qa/.env                               # CMMS_BASE_URL / PWA_BASE_URL + admin/vendor/facility-manager creds
+  4) app setup: Fexy-Zamo per its own README (rbenv/Postgres/bin/dev);
+     fexa-pwa: cd ../fexa-pwa && nvm use 20 && npm install
+  5) (fexa-qa only) cd qa && npm run fexa:fast-mode, then restart Rails (overmind web)
 
 Sanity check: bash jira-tickets/scripts/jira-list.sh   -> your sprint table
 EOF
