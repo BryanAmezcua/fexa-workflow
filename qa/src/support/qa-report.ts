@@ -982,6 +982,107 @@ export const TANGO_85_AC = {
 } as const satisfies Record<string, AcClause>;
 
 /**
+ * TANGO-111 — Expose Invoice Line Item and Product Classification Totals as
+ * Configurable Data Points.
+ *
+ * The AC in the ticket DESCRIPTION describes the ORIGINAL request (expose line
+ * item + classification totals as data points in billing requirements and
+ * workflow definitions). That approach was deferred by michelle.klaer on
+ * 2026-07-14 over performance and system-validation risk, cloned to TANGO-82,
+ * and re-scoped. The agreed scope now lives in the ticket COMMENTS, so the
+ * clauses below are quoted verbatim from those comments rather than from the
+ * description. Sources are noted per clause.
+ */
+export const TANGO_111_AC = {
+  Setting1: {
+    ref: 'Site setting #1 (Christina Schechter, 2026-08-07)',
+    text: 'what if instead of solving by developing the original request, we created a site setting that either allows or blocks a user from creating a line item with a negative value?',
+  },
+  Setting2: {
+    ref: 'Site setting #2 (Christina Schechter, 2026-08-07)',
+    text: 'We are thinking that this site setting should apply to all quote/invoice records, due to the possibility of someone duplicating a quote with a negative line item value and there being nothing to prevent that line item from being created on the invoice.',
+  },
+  Setting3: {
+    ref: 'Site setting #3 — default (Christina Schechter, 2026-08-07)',
+    text: 'The recommendation would be for the site setting default to allow negative line item values (this would not negatively impact any existing customers), and then if the client chooses that they do not want to allow negative values, the setting is enabled to block that action from occurring.',
+  },
+  Toast1: {
+    ref: 'Toast message (Christina Schechter, 2026-08-07)',
+    text: 'We would expect some type of behavior where if the user attempted to save a line item with a negative value, a toast message would appear advising the user that negative line items are not allowed, and they would be required to update the qty/rate values to ensure that the total of that line item is greater than 0.',
+  },
+  Grandfather1: {
+    ref: 'Existing records (Christina Schechter, 2026-08-14)',
+    text: 'I agree with your approach.  If a customer opts in after go live, we don\u2019t want that to negatively impact or break anything that was already there.',
+  },
+  Duplication1: {
+    ref: 'Duplication behavior (Christina Schechter, 2026-08-14)',
+    text: 'I think we should copy everything except the negative line item and explain what was skipped with a notation that the client no longer allows negative line items on proposals and invoices.',
+  },
+} as const satisfies Record<string, AcClause>;
+
+/**
+ * TANGO-65 — Pricing: Add "Asset" as a Set Criteria Field for Subcontractor and
+ * Client Product Pricing.
+ *
+ * CS escalation (label CS_Escalation). Client: Cushman & Wakefield, flagged at
+ * risk of leaving Fexa; CSM Christina Schechter; escalated 2026-05-11. The
+ * business case: two assets of the same type at the same facility carry
+ * different contracted rates, and no existing criteria combination can
+ * disambiguate them.
+ *
+ * NUMBERING NOTE — the ticket's three AC sections are separate Jira ordered
+ * lists whose `order` attributes continue rather than restart, so Jira renders
+ * them as Configuration 1-3, Matching behavior 3-6, Edge cases 6-7. Those
+ * rendered numbers collide across sections, so the `ref` labels below are
+ * scoped per section (Configuration #1, Matching #1, Edge #1 …). The `text` is
+ * verbatim from the ticket description in every case.
+ *
+ * Source: https://facilitiesexchange.atlassian.net/browse/TANGO-65
+ */
+export const TANGO_65_AC = {
+  Configuration1: {
+    ref: 'Configuration #1',
+    text: '"Asset" appears as a selectable criteria field in BOTH the Subcontractor (Vendor) Product Pricing and Client Product Pricing configuration modals.',
+  },
+  Configuration1a: {
+    ref: 'Configuration #1 (sub-clause)',
+    text: 'Clients pricing would not have price enforcements',
+  },
+  Configuration2: {
+    ref: 'Configuration #2',
+    text: 'Only active assets should populate in the list of assets',
+  },
+  Configuration3: {
+    ref: 'Configuration #3',
+    text: 'Asset is added to the pricing criteria set and to the pricing import/export keys.',
+  },
+  Matching1: {
+    ref: 'Matching behavior #1 (rendered as #3)',
+    text: 'A pricing rule scoped to a specific asset is honored when that asset is referenced on a line item.',
+  },
+  Matching2: {
+    ref: 'Matching behavior #2 (rendered as #4)',
+    text: 'Asset participates in the existing best-match ranking with a defined precedence relative to existing criteria (Product, Product Class, Facility, Vendor, Category, etc.).',
+  },
+  Matching3: {
+    ref: 'Matching behavior #3 (rendered as #5)',
+    text: 'Behavior is consistent with how existing criteria (e.g., Facility, Category) function today.',
+  },
+  Matching4: {
+    ref: 'Matching behavior #4 (rendered as #6)',
+    text: 'To support price enforcement - this would be used with flat rate, base price for subcontractor pricing.',
+  },
+  Edge1: {
+    ref: 'Edge case #1 (rendered as #6)',
+    text: 'A line item with no asset still matches non-asset-scoped rules (asset criterion is optional, not required).',
+  },
+  Edge2: {
+    ref: 'Edge case #2 (rendered as #7)',
+    text: 'A work order can carry multiple assets; matching resolves at the line-item asset level, not the work-order level.',
+  },
+} as const satisfies Record<string, AcClause>;
+
+/**
  * Attach ticket + AC metadata to the running test. The reporter parses
  * these annotations to group tests by ticket and render the verbatim AC.
  *

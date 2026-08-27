@@ -14,6 +14,7 @@ token
 test-results/
 playwright-report/
 exploration/
+qa/tests/_explore/
 
 # Local scratch — one-off ticket diagnostics, not part of the skill
 qa/support/

@@ -27,6 +27,8 @@ qa/                The QA engine (native Playwright Test)
   seeds/*.rb       Idempotent rails-runner fixtures
   bin/fexa-{fast,dev}-mode.sh  Toggle Fexy-Zamo fast vs dev mode
 config/config.env.example    Template for ~/.config/fexa-workflow/config.env
+config/claude-global-CLAUDE.md   Template for ~/.claude/CLAUDE.md (global rules)
+config/claude-settings.json      Template for ~/.claude/settings.json (Claude Code prefs)
 bin/setup.sh       One-shot machine setup (config scaffold + symlinks + qa deps)
 ```
 
@@ -48,7 +50,8 @@ the Windows↔WSL boundary.
 
 ```bash
 # 0. Prereqs (once per machine)
-sudo apt update && sudo apt install -y jq git curl
+sudo apt update && sudo apt install -y jq git curl gh
+gh auth login        # pwa-pr-review posts PR reviews via gh
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 # restart shell, then:
 nvm install 20
@@ -67,9 +70,9 @@ bash ~/work/fexa-workflow/bin/setup.sh
 #    ~/.config/fexa-workflow/jira-token   # paste token from id.atlassian.com/manage-profile/security/api-tokens
 #    qa/.env                              # test-account creds (fexa-qa machines only)
 
-# 3. Work repos (clone whichever this machine needs)
-git clone https://github.com/facilitiesexchange/Fexy-Zamo.git ~/work/Fexy-Zamo
-git clone https://github.com/facilitiesexchange/fexa-pwa.git  ~/work/fexa-pwa
+# 3. Work repos — setup.sh already cloned Fexy-Zamo and fexa-pwa next to this
+#    repo (~/work/*). If a clone failed (git not yet authenticated), rerun:
+bash ~/work/fexa-workflow/bin/setup.sh
 ```
 
 Notes on the work repos:
@@ -81,12 +84,10 @@ Notes on the work repos:
 - **fexa-pwa** (React 19 / Vite / TS): `cd ~/work/fexa-pwa && nvm use 20 && npm install`.
   npm only — the preinstall hook enforces it.
 
-Optional: start every Claude session in bypass-permissions mode by adding to
-`~/.claude/settings.json`:
-
-```json
-{ "permissions": { "defaultMode": "bypassPermissions" } }
-```
+`setup.sh` installs `config/claude-settings.json` to `~/.claude/settings.json`
+on machines that don't have one — bypass-permissions mode, model pin, fullscreen
+TUI, dark theme. On a machine that already has settings it leaves them alone;
+diff against the template if the experience feels different across machines.
 
 **Update on any machine:** `git -C ~/work/fexa-workflow pull` — symlinked skills
 pick up changes immediately. Re-run `bin/setup.sh` only if new skills were added.
@@ -99,7 +100,7 @@ cd ~/work/fexa-pwa          # or ~/work/Fexy-Zamo
 claude
 ```
 
-The repo's CLAUDE.md + global rules + both skills load automatically — the first
+The repo's CLAUDE.md + global rules + the skills load automatically — the first
 message is just the task:
 
 - "what's in my sprint" / `/jira-tickets` → sprint table
