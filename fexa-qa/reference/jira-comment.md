@@ -10,7 +10,7 @@ the comment to the matrix.
 TANGO QA REPORT
 ================================================================
 Ticket:      <TICKET> — <JIRA_HOST>/browse/<TICKET>
-App:         PWA (fexa-pwa, React) — mobile 390x844
+App:         PWA (fexa-pwa, React) — Pixel 5 emulation, live backend
              |  CMMS (Fexy-Zamo, Ext JS) — desktop
 Personas:    <persona label(s), " | "-separated>
 Environment: local — <base URL, e.g. http://localhost:5173>

@@ -48,7 +48,7 @@ the user wants different filtering, point them at the Jira UI.
 
 - List: `bash scripts/jira-attachments.sh <KEY>` (TSV: id, filename, url)
 - Download: `bash scripts/jira-download-attachment.sh <KEY> <ATTACHMENT-ID> [name]`
-  — saves under the repo's `qa/_attachments/` (gitignored).
+  — saves under `~/.cache/fexa-workflow/attachments/` (override: JIRA_ATTACHMENTS_DIR).
 
 ## Posting comments (only on explicit user request)
 

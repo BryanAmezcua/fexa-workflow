@@ -1,67 +1,41 @@
-# Target: cmms — Fexy-Zamo (Rails + Ext JS, desktop)
+# Target: cmms — Fexy-Zamo (Rails + Ext JS, desktop) — WSL notes only
 
-Loaded at SKILL.md step 2 when the resolved app is `cmms`. Covers steps 6-9 only.
-It never redefines the pipeline, the hard rules, or the report format.
+Loaded at SKILL.md O4 when the resolved app is `cmms`. TANGO's own `qa-ticket` skill is
+the reference for Ext selectors, the flake taxonomy, and the proven helpers
+(`tests/pricing/overlap-warning.spec.ts`, `tests/pricing/approved-rate-reference.spec.ts`,
+`src/support/fexa-app.ts`, `src/support/lineitem-grid.ts`). This file adds only what is
+specific to this machine.
 
-Base URL `http://localhost:3000` · projects `admin`, `vendor`, `facility-manager` ·
-Desktop Chrome · per-test timeout 240s.
+## Fast mode
 
-## Fast mode is mandatory here
+Dev mode serves unpacked Sencha sources; the app takes minutes to boot and TANGO's
+`global-setup` refuses to run. Confirm `/` redirects to `/main/index` first.
 
-Dev mode serves unpacked Sencha sources and the app takes minutes to boot, so tests
-time out rather than fail. Confirm `/` redirects to `/main/index` before running.
-`npm run fexa:fast-mode` runs a Sencha production build (~2 min) and patches
-`routes.rb`; `overmind restart web` reloads it. Revert with `npm run fexa:dev-mode`.
-
-## §Exploration (step 6)
-
-`qa/tests/_explore/<descriptor>.explore.spec.ts` navigates and dumps component
-metadata to `qa/exploration/`. Run:
+Use the wrapper's script, not TANGO's (`npm run fexa:fast-mode` points at a Sencha app
+root that does not exist on `develop` here):
 
 ```bash
-cd "$FEXA_WORKFLOW_REPO/qa"
-TANGO_INCLUDE_EXPLORE=1 npx playwright test tests/_explore/<descriptor>.explore.spec.ts --project=admin
+bash "$FEXA_WORKFLOW_REPO/fexa-qa/scripts/fexa-fast-mode.sh"   # idempotent; FORCE_REBUILD=1 after frontend changes
+cd "$FEXY_ZAMO_PATH" && overmind restart web
 ```
 
-Read the emitted JSON to discover real selectors before asserting. Never guess an
-Ext selector — the component tree is generated and the class names are not stable.
+Sencha Cmd must be the version the project pins (`$SENCHA_CMD_DIR` in config.env —
+the `Cmd/` subdirectory, not the launcher one level up).
 
-## §Selectors
+## Rails here
 
-Address components through the Ext component tree via `page.evaluate`, not the DOM.
+`bin/dev` / `overmind start -f Procfile.dev -D` from `$FEXY_ZAMO_PATH` runs web +
+sidekiq (the `sencha` watcher line stays commented). Postgres, Redis and Elasticsearch
+are systemd services inside WSL. `overmind restart web` after any routes change.
 
-- Deep-link a record: `Ext.History.add('<ctype>/<id>')`
-- Buttons: `button[reference=…Btn]`
-- Form fields: `formpanel [name=…]`
-- InfiniteCombo: `setValue` then poll `getValue() != null` — it resolves async
-- Grids: query the store, not the rendered rows (virtualized)
+## Seeds here
 
-## §Timing and flake taxonomy (step 8)
+`bundle exec rails runner` needs rbenv Ruby on PATH — use the environment block in
+SKILL.md. Every seed is a cold Rails boot (~30–60 s); `seed:all:fast` does the whole
+chain in one boot.
 
-- **Cold start** — the first test in a run pays Ext boot. The `gotoInvoice` helper in
-  `tests/pricing/enforced-rate.spec.ts` has the proven retry loop; reuse it.
-- **InfiniteCombo** — retry 5x.
-- **Form open** — defensive close + retry 3x.
-- **"Execution context was destroyed"** — Ext navigations tear down the page context
-  mid-evaluate. `safeEval` in `tests/workorder/assignment-nte-revert.spec.ts` wraps it.
-- **Dates** — construct via `Date.UTC(...)`; the runner pins `timezoneId: 'UTC'`.
-- Bump `test.setTimeout()` per spec if a flow genuinely needs longer than 240s.
+## Do not touch
 
-Proven helpers to reuse rather than rewrite: `gotoInvoice`, `openNewLineItemForm`,
-`selectProduct` in `tests/pricing/enforced-rate.spec.ts`.
-
-## §Screenshots (step 9)
-
-Desktop viewport, so the AC-proving element is usually in frame. Confirm each
-before/after PNG actually shows the proving element — locked field greyed, helper
-text rendered, dialog copy, persisted grid row, or the empty region for absence
-assertions.
-
-Transient UI (hover, tooltip) is captured by triggering the state, awaiting
-`waitFor({state:'visible'})`, then calling `page.screenshot()` directly — bypassing
-the helper's scroll, which dismisses it.
-
-## §Do not touch
-
-The Ext interaction knowledge in these specs is undocumented protocol knowledge whose
-only spec is the code. Restyle nothing, dedupe nothing as part of unrelated work.
+The Ext interaction knowledge in TANGO's specs and support modules is undocumented
+protocol knowledge whose only spec is the code. Reuse; never rewrite as part of
+unrelated work.

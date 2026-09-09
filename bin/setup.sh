@@ -8,7 +8,8 @@
 #   2. Installs Claude global rules + settings (~/.claude/) if the machine has none
 #   3. Symlinks the skills into ~/.claude/skills/ so Claude auto-discovers them
 #   4. Clones the work repos (Fexy-Zamo, fexa-pwa) as siblings of this repo
-#   5. Installs the QA engine's Node deps + Playwright chromium, scaffolds qa/.env
+#   5. Clones the TANGO QA engine as a sibling, checks out the personal branch,
+#      installs its Node deps + Playwright chromium, scaffolds TANGO/.env
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -85,30 +86,59 @@ for repo in facilitiesexchange/Fexy-Zamo facilitiesexchange/fexa-pwa; do
   fi
 done
 
-# 5. QA engine deps
+# 5. TANGO — the QA engine the fexa-qa skill drives. Cloned pristine as a sibling;
+#    all ticket work goes on a personal branch (TANGO_BRANCH) based on origin/main.
+#    main is never edited here.
 if ! command -v node >/dev/null 2>&1; then
-  echo "[setup] ERROR: node not on PATH. Install Node 18+ in WSL." >&2; exit 1
+  echo "[setup] ERROR: node not on PATH. Install Node 20 in WSL (nvm install 20)." >&2; exit 1
 fi
-cd "$ROOT/qa"
-echo "[setup] installing qa/ deps (npm install)..."
+# shellcheck disable=SC1090
+source "$CFG_DIR/config.env"
+TANGO_PATH="${TANGO_PATH:-$WORK_DIR/TANGO}"
+TANGO_BRANCH="${TANGO_BRANCH:-bryan/qa}"
+if [ -d "$TANGO_PATH/.git" ]; then
+  echo "[setup] TANGO already at $TANGO_PATH — fetching"
+  git -C "$TANGO_PATH" fetch origin --quiet || echo "[setup] WARNING: fetch failed — authenticate (gh auth login) and rerun" >&2
+else
+  echo "[setup] cloning facilitiesexchange/TANGO -> $TANGO_PATH"
+  git clone "https://github.com/facilitiesexchange/TANGO.git" "$TANGO_PATH" \
+    || { echo "[setup] ERROR: TANGO clone failed — authenticate first (gh auth login, then gh auth setup-git) and rerun" >&2; exit 1; }
+fi
+if git -C "$TANGO_PATH" show-ref --verify --quiet "refs/remotes/origin/$TANGO_BRANCH"; then
+  git -C "$TANGO_PATH" checkout --quiet "$TANGO_BRANCH" 2>/dev/null \
+    || git -C "$TANGO_PATH" checkout --quiet -b "$TANGO_BRANCH" --track "origin/$TANGO_BRANCH"
+  echo "[setup] TANGO on $TANGO_BRANCH (tracking origin/$TANGO_BRANCH)"
+else
+  git -C "$TANGO_PATH" checkout --quiet -b "$TANGO_BRANCH" origin/main
+  echo "[setup] created $TANGO_BRANCH from origin/main — push it when ready: git -C $TANGO_PATH push -u origin $TANGO_BRANCH"
+fi
+cd "$TANGO_PATH"
+echo "[setup] installing TANGO deps (npm install)..."
 npm install
 echo "[setup] installing Playwright chromium (+ system libs; may prompt for sudo)..."
 npx playwright install --with-deps chromium
 if [ ! -f .env ]; then
   cp .env.example .env
-  echo "[setup] created qa/.env from .env.example"
+  echo "[setup] created $TANGO_PATH/.env from .env.example — fill ADMIN/VENDOR/FACILITY_MANAGER/PRICING_ADMIN creds"
 fi
 cd "$ROOT"
+
+# Leftovers from the retired local engine (gitignored, so git pull does not remove them)
+if [ -d "$ROOT/qa" ]; then
+  echo "[setup] NOTE: $ROOT/qa is left over from the retired local QA engine (node_modules/.env/auth/reports)."
+  echo "        The engine now lives in TANGO. Remove it with:  rm -rf $ROOT/qa"
+fi
 
 cat <<'EOF'
 
 [setup] Done. Remaining manual steps:
   1) edit ~/.config/fexa-workflow/config.env    # JIRA_EMAIL / JIRA_HOST / repo paths
   2) paste Jira token into ~/.config/fexa-workflow/jira-token
-  3) edit qa/.env                               # CMMS_BASE_URL / PWA_BASE_URL + admin/vendor/facility-manager creds
+  3) edit $TANGO_PATH/.env                     # admin/vendor/facility-manager/pricing-admin creds (the rest are seeded)
   4) app setup: Fexy-Zamo per its own README (rbenv/Postgres/bin/dev);
      fexa-pwa: cd ../fexa-pwa && nvm use 20 && npm install
-  5) (fexa-qa only) cd qa && npm run fexa:fast-mode, then restart Rails (overmind web)
+  5) (fexa-qa only) fast mode: bash fexa-qa/scripts/fexa-fast-mode.sh, then overmind restart web;
+     then seed everything once: cd $TANGO_PATH && npm run seed:all:fast
 
 Sanity check: bash jira-tickets/scripts/jira-list.sh   -> your sprint table
 EOF
