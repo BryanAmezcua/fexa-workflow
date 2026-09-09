@@ -10,12 +10,7 @@ specs/
 token
 .env
 
-# QA / Playwright artifacts
+# Playwright artifacts (in case a scratch run lands here — the engine lives in TANGO)
 test-results/
 playwright-report/
 exploration/
-qa/tests/_explore/
-
-# Local scratch — one-off ticket diagnostics, not part of the skill
-qa/support/
-

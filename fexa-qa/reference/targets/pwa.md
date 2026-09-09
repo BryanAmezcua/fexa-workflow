@@ -1,19 +1,25 @@
 # Target: pwa — fexa-pwa (React + Vite, mobile)
 
-Loaded at SKILL.md step 2 when the resolved app is `pwa`. Covers steps 6-9 only.
-It never redefines the pipeline, the hard rules, or the report format.
+Loaded at SKILL.md O4 when the resolved app is `pwa`. Covers TANGO's explore, spec,
+run and screenshot steps only. It never redefines the pipeline, the hard rules, or the
+report format.
 
-Base URL `http://localhost:5173` · projects `pwa-admin`, `pwa-vendor`,
-`pwa-facility-manager` · 390x844, `isMobile`, `hasTouch` · per-test timeout 60s.
+Base URL `http://localhost:5173` · TANGO projects: `fexa-pwa-live` (live Rails backend,
+`TANGO_INCLUDE_PWA_LIVE=1`) and `fexa-pwa` (MSW mock, `TANGO_TARGET=fexa-pwa`) · both
+emulate Pixel 5 (393x851, `isMobile`, `hasTouch`) · per-test timeout is Playwright's
+30 s default, so set `test.setTimeout()` in the describe block like TANGO's specs do.
 
 **None of the CMMS idioms apply.** No `Ext.ComponentQuery`, no `Ext.History.add`, no
 InfiniteCombo polling, no fast mode, no cold-start retry.
 
 ## Prerequisites
 
-Rails on `:3000` **and** `npm run dev` on `:5173` (the Vite proxy forwards
-`/api`, `/users`, `/main` to Rails, which is what keeps everything same-origin).
-`global-setup` aborts if the proxy is dead or if MSW is intercepting.
+Live: Rails on `:3000` in fast mode. Playwright's `webServer` boots `npm run dev` in
+`$FEXA_PWA_PATH` on `:5173` itself (the Vite proxy forwards `/api`, `/users`, `/main` to
+Rails, which is what keeps everything same-origin). TANGO's `global-setup` does **not**
+check the proxy or MSW — SKILL.md O3's live preflight does. Live specs have no
+`storageState`; they log in through the PWA's Devise form (`loginToPwa` pattern in
+`tests/work-order/mobile-notes-tab.spec.ts`).
 
 ## §Exploration (step 6)
 
@@ -52,7 +58,7 @@ are traps. Full list with exact fixes: `pwa-repo-prerequisites.md` (same directo
 
 `DataView` branches on `useBreakpoint().isDesktop` in **JS, not CSS**: below 1024px it
 renders cards, at/above it renders a real `<table>`. A spec written for one tier hard
-fails on the other. The `pwa-*` projects are mobile (390px) — write for cards.
+fails on the other. The `fexa-pwa*` projects are mobile (393px) — write for cards.
 
 The page `<h1>` lives inside a `lg:hidden` wrapper, so heading assertions are
 mobile-only.
@@ -91,7 +97,7 @@ does not start until settings land), and `/api/v1/permission_resources`
 Mobile changes what a screenshot proves. Three additional checks beyond the standard
 "does the PNG show the AC-proving element":
 
-1. **Below the fold.** At 390x844 the proving element is frequently off-screen, so a
+1. **Below the fold.** On a phone viewport the proving element is frequently off-screen, so a
    passing assertion routinely yields a screenshot that proves nothing. Scroll it into
    view before capturing.
 2. **Occlusion.** The floating bottom nav and safe-area insets can cover the `focus`
@@ -113,9 +119,10 @@ precise AC source than the ticket, and it drives critique lens (d) in step 10.
 
 ## §Service worker
 
-The `pwa-*` projects set `serviceWorkers: 'block'`. The built SW's navigation route
-has no denylist, so once registered it answers every navigation from the precached
-shell — including `/users/sign_in`, which would silently stop being the Devise form.
-Nothing under test depends on it: the offline banner is `navigator.onLine`-driven and
-there is no install-prompt handling. Note the SW does not register under `npm run dev`
-at all; testing SW behavior itself requires `vite preview` and a dedicated project.
+TANGO's projects do not block service workers. That is safe under `npm run dev`, where
+the SW never registers. It matters if a spec ever runs against `vite preview`: the built
+SW's navigation route has no denylist, so once registered it answers every navigation
+from the precached shell — including `/users/sign_in`, which would silently stop being
+the Devise form. Add `serviceWorkers: 'block'` to such a project unless SW behaviour is
+the thing under test. Nothing under test today depends on the SW: the offline banner is
+`navigator.onLine`-driven and there is no install-prompt handling.

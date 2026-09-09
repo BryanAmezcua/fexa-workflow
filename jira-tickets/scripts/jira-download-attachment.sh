@@ -1,6 +1,6 @@
 #!/bin/bash
 # jira-download-attachment.sh — Download a single Jira attachment by ID.
-# Saves under <repo>/qa/_attachments/ (gitignored) by default; override with
+# Saves under ~/.cache/fexa-workflow/attachments/ by default; override with
 # JIRA_ATTACHMENTS_DIR in the config.
 # Config: ~/.config/fexa-workflow/config.env
 #
@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/jira-common.sh"
 
 # scripts/ -> jira-tickets/ -> repo root (resolves through the ~/.claude symlink)
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ATTACH_DIR="${JIRA_ATTACHMENTS_DIR:-$REPO_ROOT/qa/_attachments}"
+ATTACH_DIR="${JIRA_ATTACHMENTS_DIR:-$HOME/.cache/fexa-workflow/attachments}"
 
 if [[ -z "${1:-}" || -z "${2:-}" ]]; then
   echo "Usage: $0 <TICKET-KEY> <ATTACHMENT-ID> [output-filename]" >&2

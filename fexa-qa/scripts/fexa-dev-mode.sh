@@ -16,7 +16,7 @@ fi
 cd "$FEXA_PATH"
 FEXA_ABS="$(pwd)"
 ROUTES="$FEXA_ABS/config/routes.rb"
-APP_JSON="$FEXA_ABS/app/assets/javascripts/app/app.json"
+APP_JSON="$FEXA_ABS/app/assets/javascripts/app.json"
 
 # --- Revert routes.rb -------------------------------------------------------
 

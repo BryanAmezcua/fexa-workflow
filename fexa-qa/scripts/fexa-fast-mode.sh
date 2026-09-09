@@ -8,7 +8,7 @@
 # After this script completes you must restart your Rails server manually
 # before tests will see the fast bundle. The script prints a clear reminder.
 #
-# Revert with: bin/fexa-dev-mode.sh
+# Revert with: fexa-qa/scripts/fexa-dev-mode.sh
 #
 # Env vars:
 #   FEXY_ZAMO_PATH   path to Fexy-Zamo checkout (default: ../Fexy-Zamo)
@@ -108,5 +108,5 @@ cat <<EOF
 
   After restart, visit http://localhost:3000/main/index to confirm fast load.
 
-  Revert with: npm run fexa:dev-mode
+  Revert with: bash fexa-qa/scripts/fexa-dev-mode.sh, then restart Rails (overmind restart web)
 EOF
