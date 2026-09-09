@@ -17,7 +17,9 @@ InfiniteCombo polling, no fast mode, no cold-start retry.
 Live: Rails on `:3000` in fast mode. Playwright's `webServer` boots `npm run dev` in
 `$FEXA_PWA_PATH` on `:5173` itself (the Vite proxy forwards `/api`, `/users`, `/main` to
 Rails, which is what keeps everything same-origin). TANGO's `global-setup` does **not**
-check the proxy or MSW — SKILL.md O3's live preflight does. Live specs have no
+check the proxy or MSW — SKILL.md O3's live preflight does. Note `public/mockServiceWorker.js`
+is served in every mode; mock mode is only detectable from the inlined `VITE_USE_MOCKS`
+flag in the served entry module. Live specs have no
 `storageState`; they log in through the PWA's Devise form (`loginToPwa` pattern in
 `tests/work-order/mobile-notes-tab.spec.ts`).
 
@@ -62,6 +64,22 @@ fails on the other. The `fexa-pwa*` projects are mobile (393px) — write for ca
 
 The page `<h1>` lives inside a `lg:hidden` wrapper, so heading assertions are
 mobile-only.
+
+## §Landmarks
+
+The dashboard has no stable KPI tile to key on (the "Work Order Volume" tile was removed
+in fexa-pwa 7ab9124). Use the structure: the `<h1>` greeting for "rendered", then the
+first child of the body column `main div.flex.flex-col.gap-3` once no `.animate-pulse`
+skeleton remains — it is the first block below the banner slot for an empty, an error,
+or a populated dashboard alike.
+
+## §Fake clock
+
+`page.clock.install()` keeps ticking in **real** time until `fastForward`; measure a
+cadence relative to `Date.now()` read from the page after the anchoring request, never
+as an absolute jump. `Request.postData()` can be null for ky JSON POSTs even without a
+service worker — prove a write through the server's echo (Rails `params.require` +
+201 + returned row), and assert the literal body only when it is exposed.
 
 ## §Timing (step 8)
 

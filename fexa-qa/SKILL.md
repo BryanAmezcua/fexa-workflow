@@ -127,14 +127,21 @@ spans both (a mock-only UI behaviour plus a live round-trip), use TANGO's opt-in
 **Live preflight** — TANGO's `global-setup` does not check these, so do it yourself:
 ```bash
 curl -s -o /dev/null -w "%{redirect_url}\n" --max-time 10 http://localhost:3000/      # must be /main/index
-curl -s -o /dev/null -w "%{http_code}\n" --max-time 5 http://localhost:5173/mockServiceWorker.js
+# Is something already on the PWA port, and is it in mock mode? The mock worker
+# file (public/mockServiceWorker.js) is a static asset every dev server serves,
+# so its status code proves NOTHING. Vite inlines the flag into the entry module:
+curl -s --max-time 3 http://localhost:5173/src/main.tsx | grep -c 'VITE_USE_MOCKS: *"true"'   # 1 = mock mode
 ```
 - `/main/development` → dev mode. Flip it with O6 (never with `npm run fexa:fast-mode`).
 - Nothing on `:3000` → ask the user to start Fexy-Zamo (`overmind start -f Procfile.dev -D` in `$FEXY_ZAMO_PATH`).
-- `mockServiceWorker.js` → `200` on `:5173` → something already runs `dev:mock` there.
-  Playwright's `reuseExistingServer` would adopt it and the suite would pass against
-  fabricated data. **Stop that server before a live run.** Mock mode is never a
+- A server already on the PWA port: Playwright's `reuseExistingServer` adopts whatever
+  is there — a plain `npm run dev` would be adopted as the *mock* server (and a
+  `dev:mock` as the *live* one), so a paired run would prove the wrong thing. Do not
+  ask the user to stop their dev server; **move the run instead**:
+  `FEXA_PWA_PORT=5183` (mock on 5183, the live pair on 5185). Mock mode is never a
   substitute for a live run.
+- Live runs mutate the shared DB — wrap seed + run in TANGO's lock:
+  `npm run qa:locked -- bash -c "npm run seed:<x> && npm run test:<x>"`.
 
 ### O4. Read exactly one target reference per run
 - `pwa` → `reference/targets/pwa.md` (this folder). Selector policy, timing traps,
@@ -204,8 +211,8 @@ Synthesize into a prioritized gap list. Fix high-value gaps, re-run, re-verify.
 - **Never touch TANGO `main`.** No commits, no pushes, no PRs. Branch is `$TANGO_BRANCH`.
 - **Never modify TANGO's engine files to fix an environment problem** — fix it in this
   wrapper (scripts/, reference/, config.env). TANGO stays a pristine, pullable clone.
-- **PWA defaults to live.** Mock only for the exceptions in O3, and never when
-  `/mockServiceWorker.js` is being served on the live port.
+- **PWA defaults to live.** Mock only for the exceptions in O3; probe the port with the
+  inlined `VITE_USE_MOCKS` flag, never with the static worker file.
 - **Read exactly one `reference/targets/*.md` per run.**
 - **Fast mode via the wrapper's script only**; never for a mock run.
 - **Verbatim AC, domain-language names, `focus` on positive snapshots, input values
