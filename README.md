@@ -42,7 +42,7 @@ Sibling repos (`~/work/*`), all required by `fexa-qa`:
                       ticket work lives on the personal branch in TANGO_BRANCH (bryan/qa),
                       based on origin/main and pushed to the org remote. Never a PR.
 ~/work/Fexy-Zamo      app under test (cmms) — TANGO's seeds boot it with rails runner
-~/work/fexa-pwa       app under test (pwa)  — TANGO's webServer boots its dev server
+~/work/fexa-pwa       app under test (pwa)  — tested on its `qa` branch (FEXA_PWA_BRANCH), in a worktree
 ```
 
 Machine-specific files (never in this repo):
