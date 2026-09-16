@@ -299,6 +299,16 @@ from `TEST_BASE_URL`, so the second PWA talks to the second Rails. Deltas while 
     default-hidden-types.rb hidden-invoice-direct-link.rb asset-criteria-pricing.rb assignment-nte-stale-overwrite.rb
   ```
   (verified 2026-09-10: all eight OK, ~1 min). Then the ticket's own seed.
+- **Never `source` TANGO's `.env` into the shell.** It carries `TEST_BASE_URL=http://localhost:3000`
+  and would clobber the slot's `TEST_BASE_URL` — every LIVE PWA project derives
+  `VITE_BACKEND_URL` from it, so the next vite boot proxies to the user's dev Rails and
+  the suite creates records in `fmdev` while the seed runs against the clone (happened
+  2026-09-16: four `[QA]` work orders landed in the dev DB, all green). Playwright's own
+  dotenvx injection never overrides an exported variable, so let it do the loading; if a
+  seed needs a persona password from `.env`, export only those keys:
+  `export $(grep -E '^(FACILITY_MANAGER|INTERNAL_EMPLOYEE)_(EMAIL|PASSWORD)=' .env | xargs)`,
+  and re-run `eval "$(qa-slot.sh env)"` LAST so the slot's ports win. After a run, prove
+  where the records landed (`psql -d <clone>` vs `fmdev`) before reading the report.
 - **Before every run, check nobody else sits on your PWA port.** `qa-slot.sh env` warns
   when the slot's port is served from outside a `qa-*` worktree; Playwright's
   `reuseExistingServer` would adopt that server and the suite would silently test the

@@ -4,7 +4,7 @@
 # $FEXA_PWA_BRANCH from config.env, default `qa` — NOT main, which is production
 # and lags), so the worktree is a detached checkout of origin/$FEXA_PWA_BRANCH by
 # default; the user's own checkout and dev server are never touched. The main
-# tree's node_modules is symlinked in (a fresh worktree has none).
+# tree's node_modules is hard-link-copied in (a fresh worktree has none).
 #
 # Usage:
 #   pwa-worktree.sh create <TICKET> [ref]   # default origin/$FEXA_PWA_BRANCH (detached); ref only for a deliberate exception
@@ -36,9 +36,15 @@ case "$CMD" in
       # Deliberate exception to "test $BRANCH": check a named ref out.
       git -C "$MAIN" worktree add "$WT" "$REF" >&2
     fi
-    [ -e "$MAIN/node_modules" ] && ln -sfn "$MAIN/node_modules" "$WT/node_modules"
-    # The symlink is not matched by a `node_modules/` (trailing-slash) ignore
-    # rule; exclude it locally so a stray `git add -A` never tracks it.
+    # A hard-linked COPY (cp -al), not a symlink: Vite resolves the real path
+    # of every served file and refuses anything outside the worktree's
+    # server.fs.allow list — with a symlink the @fontsource woff files 404
+    # ("outside of Vite serving allow list", seen 2026-09-16) and screenshots
+    # render in the fallback font. Hard links cost seconds and no disk.
+    if [ -e "$MAIN/node_modules" ] && [ ! -e "$WT/node_modules" ]; then
+      cp -al "$MAIN/node_modules" "$WT/node_modules"
+    fi
+    # Exclude it locally so a stray `git add -A` never tracks it.
     EXCL="$(git -C "$WT" rev-parse --git-path info/exclude)"
     grep -qxF '/node_modules' "$EXCL" 2>/dev/null || printf '/node_modules\n' >> "$EXCL"
     echo "WORKTREE=$WT"
