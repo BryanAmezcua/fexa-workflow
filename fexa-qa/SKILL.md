@@ -269,6 +269,14 @@ eval "$(ruby -ryaml -rerb -e 'y=YAML.load(ERB.new(File.read(ARGV[0])).result)["d
 scripts/fresh-cmms-db.sh template retailer        # no-op when current
 scripts/fresh-cmms-db.sh create retailer          # -> tango_qa_run_retailer
 export DATABASE_URL="$(scripts/fresh-cmms-db.sh url retailer)"
+#    The template check only looks at the NEWEST db/migrate file, so a clone can
+#    still have a pending migration (every request 500s with
+#    PendingMigrationError) — migrate the clone, and repoint the tenant's
+#    host_url at the slot: Devise sends vendors/facility managers to host_url
+#    after sign-in, and the template still says :3000 (vendor login then dies
+#    with ERR_CONNECTION_REFUSED, seen 2026-09-16). Both before the Rails boot.
+( cd "$FEXY_ZAMO_PATH" && DISABLE_SPRING=true bundle exec rails db:migrate 2>&1 | grep -E "migrat|rror" )
+psql -d tango_qa_run_retailer -c "UPDATE site_settings SET value='$TEST_BASE_URL' WHERE name='host_url'"
 #    CMMS_PORT / REDIS_PORT / TEST_BASE_URL / FEXA_PWA_PORT came from the claim
 #    (TANGO derives VITE_BACKEND_URL from TEST_BASE_URL).
 #    Both flags below are REQUIRED. Puma's sencha plugin writes into app/assets
@@ -289,6 +297,12 @@ from `TEST_BASE_URL`, so the second PWA talks to the second Rails. Deltas while 
   a cmms ticket with its own branch, `cmms-checkout.sh ensure <branch>` instead. When
   `ensure` moves the worktree's HEAD it calls TANGO's fast-mode script, which fails
   here — re-run the wrapper's with `FORCE_REBUILD=1` afterwards.
+- **Demo personas keep the demo password on a fresh clone.** `.env` `VENDOR_PASSWORD` is
+  NOT what the template's `subcontractor_user3083@fexa.io` carries; global-setup then
+  "logs in" (Devise 401, cookie saved anyway) and every `vendor`-project spec 401s. A
+  seed that uses the vendor must refresh it: `user.update!(password: ENV['VENDOR_PASSWORD'])`
+  (seeds/vendor-invoice-zero-balance.rb does; export the key from `.env` first — never
+  `source .env`).
 - **A fresh clone has no `tango_*` persona users**, and on the `fexa-pwa-live` project
   `global-setup` logs every `.env` role in first — each failed login costs ~30 s per run.
   Seed the personas once per clone in one Rails boot (`seed:all:fast` aborts partway on a
