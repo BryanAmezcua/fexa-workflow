@@ -285,6 +285,6 @@ The skill never posts an AC verdict you haven't seen.
   posted (match by `path` + `title`)? Needs a fetch of existing review comments.
 - Agent count: 6 lenses + N AC points + adversarial fan-out. Worth capping the
   AC agents when a ticket has 15+ points.
-- Whether `cant-tell` AC verdicts should auto-suggest a fexa-qa run to settle
+- Whether `cant-tell` AC verdicts should auto-suggest a TANGO QA run to settle
   them at runtime.
 ```

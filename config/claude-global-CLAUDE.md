@@ -13,5 +13,5 @@
 ## Repo map (this machine)
 - `~/work/Fexy-Zamo` — Rails 5.2 + Ext JS CMMS (company repo; personal context in CLAUDE.local.md + memory-bank/)
 - `~/work/fexa-pwa` — React 19/Vite PWA rewrite (node 20 via nvm)
-- `~/work/fexa-workflow` — my Claude skills (jira-tickets, fexa-qa wrapper over TANGO, pwa-pr-review; symlinked into ~/.claude/skills)
-- `~/work/TANGO` — team QA engine (facilitiesexchange/TANGO); fexa-qa drives it, work on branch `bryan/qa`, never `main`
+- `~/work/fexa-workflow` — my Claude skills (jira-tickets, pwa-pr-review; symlinked into ~/.claude/skills), `bin/setup.sh` + `bin/doctor.sh`, `config/dev-env.sh` (toolchain PATH for all shells), `qa-tools/` (local helpers for running TANGO in WSL)
+- `~/work/TANGO` — team QA engine (facilitiesexchange/TANGO); use its own `qa-ticket` skill and follow its maintainer's patterns. Work is committed straight to `main` (`git pull --rebase` first). QA runs on an isolated slot (`fexa-workflow/qa-tools/README.md`) — never against the dev stack (`:3000` / `fmdev` / `:5173`).

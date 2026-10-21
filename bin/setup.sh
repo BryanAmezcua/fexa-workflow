@@ -3,12 +3,13 @@
 # One-shot machine setup for fexa-workflow. Run from anywhere, inside WSL:
 #   bin/setup.sh
 #
-# Does five things:
+# Safe to re-run. Does six things, then runs bin/doctor.sh:
+#   0. Wires the dev toolchain env (config/dev-env.sh) into every bash shell
 #   1. Scaffolds ~/.config/fexa-workflow/ (config.env + jira-token placeholder)
 #   2. Installs Claude global rules + settings (~/.claude/) if the machine has none
 #   3. Symlinks the skills into ~/.claude/skills/ so Claude auto-discovers them
 #   4. Clones the work repos (Fexy-Zamo, fexa-pwa) as siblings of this repo
-#   5. Clones the TANGO QA engine as a sibling, checks out the personal branch,
+#   5. Clones the TANGO QA engine as a sibling on main,
 #      installs its Node deps + Playwright chromium, scaffolds TANGO/.env
 set -euo pipefail
 
@@ -19,6 +20,29 @@ echo "[setup] repo: $ROOT"
 case "$ROOT" in
   /mnt/*) echo "[setup] WARNING: $ROOT is on the Windows mount. Clone into WSL home (~/work) — node_modules/Playwright/Sencha are slow across /mnt/c." ;;
 esac
+
+# 0. Dev toolchain env for ALL shells (interactive terminals, login shells, scripts).
+#    ~/.dev-env.sh -> config/dev-env.sh; ~/.bashrc sources it ABOVE its interactive-only
+#    guard; ~/.profile exports BASH_ENV so non-interactive `bash -c` / scripts load it too.
+ln -sfn "$ROOT/config/dev-env.sh" "$HOME/.dev-env.sh"
+echo "[setup] linked ~/.dev-env.sh -> $ROOT/config/dev-env.sh"
+touch "$HOME/.bashrc" "$HOME/.profile"
+if ! grep -q '\.dev-env\.sh' "$HOME/.bashrc"; then
+  # Prepend, so it runs before the stock "if not interactive, return" guard.
+  { printf '%s\n' \
+      '# Dev toolchain (rbenv/nvm/Sencha/Android) for ALL shells, interactive or not.' \
+      '# Source of truth: ~/work/fexa-workflow/config/dev-env.sh (symlinked as ~/.dev-env.sh).' \
+      '[ -r "$HOME/.dev-env.sh" ] && . "$HOME/.dev-env.sh"' ''; cat "$HOME/.bashrc"; } > "$HOME/.bashrc.fexa-tmp"
+  mv "$HOME/.bashrc.fexa-tmp" "$HOME/.bashrc"
+  echo "[setup] ~/.bashrc now loads ~/.dev-env.sh (remove any old rbenv/nvm/Sencha PATH lines further down)"
+fi
+if ! grep -q 'BASH_ENV=.*\.dev-env\.sh' "$HOME/.profile"; then
+  printf '\n%s\n%s\n' '# Non-interactive bash (scripts, `bash -c`) reads $BASH_ENV: load the dev toolchain there too.' \
+    'export BASH_ENV="$HOME/.dev-env.sh"' >> "$HOME/.profile"
+  echo "[setup] ~/.profile now exports BASH_ENV"
+fi
+# shellcheck disable=SC1091
+. "$HOME/.dev-env.sh"
 
 # 1. Per-machine config (never in git)
 CFG_DIR="$HOME/.config/fexa-workflow"
@@ -58,7 +82,9 @@ fi
 # 3. Skill symlinks — repo stays the single source of truth; git pull updates them
 SKILLS_DIR="$HOME/.claude/skills"
 mkdir -p "$SKILLS_DIR"
-for skill in jira-tickets fexa-qa pwa-pr-review; do
+# fexa-qa was retired (TANGO's own qa-ticket skill is the QA pipeline); drop its old link.
+[ -L "$SKILLS_DIR/fexa-qa" ] && rm "$SKILLS_DIR/fexa-qa" && echo "[setup] removed retired skill link $SKILLS_DIR/fexa-qa"
+for skill in jira-tickets pwa-pr-review; do
   link="$SKILLS_DIR/$skill"
   if [ -L "$link" ]; then
     ln -sfn "$ROOT/$skill" "$link"
@@ -86,16 +112,14 @@ for repo in facilitiesexchange/Fexy-Zamo facilitiesexchange/fexa-pwa; do
   fi
 done
 
-# 5. TANGO — the QA engine the fexa-qa skill drives. Cloned pristine as a sibling;
-#    all ticket work goes on a personal branch (TANGO_BRANCH) based on origin/main.
-#    main is never edited here.
+# 5. TANGO — the team's QA engine (its qa-ticket skill is the pipeline). Work is
+#    committed straight to main, like its maintainer does: pull --rebase first.
 if ! command -v node >/dev/null 2>&1; then
-  echo "[setup] ERROR: node not on PATH. Install Node 20 in WSL (nvm install 20)." >&2; exit 1
+  echo "[setup] ERROR: node not on PATH. Install Node 20 in WSL (nvm install 20 && nvm alias default 20)." >&2; exit 1
 fi
 # shellcheck disable=SC1090
 source "$CFG_DIR/config.env"
 TANGO_PATH="${TANGO_PATH:-$WORK_DIR/TANGO}"
-TANGO_BRANCH="${TANGO_BRANCH:-bryan/qa}"
 if [ -d "$TANGO_PATH/.git" ]; then
   echo "[setup] TANGO already at $TANGO_PATH — fetching"
   git -C "$TANGO_PATH" fetch origin --quiet || echo "[setup] WARNING: fetch failed — authenticate (gh auth login) and rerun" >&2
@@ -104,13 +128,10 @@ else
   git clone "https://github.com/facilitiesexchange/TANGO.git" "$TANGO_PATH" \
     || { echo "[setup] ERROR: TANGO clone failed — authenticate first (gh auth login, then gh auth setup-git) and rerun" >&2; exit 1; }
 fi
-if git -C "$TANGO_PATH" show-ref --verify --quiet "refs/remotes/origin/$TANGO_BRANCH"; then
-  git -C "$TANGO_PATH" checkout --quiet "$TANGO_BRANCH" 2>/dev/null \
-    || git -C "$TANGO_PATH" checkout --quiet -b "$TANGO_BRANCH" --track "origin/$TANGO_BRANCH"
-  echo "[setup] TANGO on $TANGO_BRANCH (tracking origin/$TANGO_BRANCH)"
-else
-  git -C "$TANGO_PATH" checkout --quiet -b "$TANGO_BRANCH" origin/main
-  echo "[setup] created $TANGO_BRANCH from origin/main — push it when ready: git -C $TANGO_PATH push -u origin $TANGO_BRANCH"
+if [ "$(git -C "$TANGO_PATH" branch --show-current)" != "main" ]; then
+  echo "[setup] NOTE: TANGO is on '$(git -C "$TANGO_PATH" branch --show-current)' — work goes on main: git -C $TANGO_PATH checkout main"
+elif [ -z "$(git -C "$TANGO_PATH" status --porcelain --untracked-files=no)" ]; then
+  git -C "$TANGO_PATH" pull --rebase --quiet origin main && echo "[setup] TANGO main up to date"
 fi
 cd "$TANGO_PATH"
 echo "[setup] installing TANGO deps (npm install)..."
@@ -136,9 +157,13 @@ cat <<'EOF'
   2) paste Jira token into ~/.config/fexa-workflow/jira-token
   3) edit $TANGO_PATH/.env                     # admin/vendor/facility-manager/pricing-admin creds (the rest are seeded)
   4) app setup: Fexy-Zamo per its own README (rbenv/Postgres/bin/dev);
-     fexa-pwa: cd ../fexa-pwa && nvm use 20 && npm install
-  5) (fexa-qa only) fast mode: bash fexa-qa/scripts/fexa-fast-mode.sh, then overmind restart web;
-     then seed everything once: cd $TANGO_PATH && npm run seed:all:fast
+     fexa-pwa: cd ../fexa-pwa && npm install
+  5) QA runs: TANGO's own qa-ticket skill, on an isolated slot — see qa-tools/README.md
+  6) open a NEW terminal (the shell wiring above applies to new shells)
 
 Sanity check: bash jira-tickets/scripts/jira-list.sh   -> your sprint table
 EOF
+
+echo
+bash "$ROOT/bin/doctor.sh" || echo "[setup] doctor found problems above — fix them and run bin/doctor.sh again"
+

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Provision (or tear down) an isolated fexa-pwa worktree for ONE parallel fexa-qa
+# Provision (or tear down) an isolated fexa-pwa worktree for ONE parallel QA (TANGO)
 # instance. PWA tickets are tested on the integration branch (wrapper O2:
 # $FEXA_PWA_BRANCH from config.env, default `qa` — NOT main, which is production
 # and lags), so the worktree is a detached checkout of origin/$FEXA_PWA_BRANCH by

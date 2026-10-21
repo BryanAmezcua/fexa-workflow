@@ -2,6 +2,10 @@
 
 Read this only when the user asks you to draft or post a comment. Never auto-post.
 
+**Attach the report before commenting.** `jira-attach.sh <TICKET> reports/latest/<TICKET>.html`
+runs first; the comment's `Report:` line then truthfully says "(attached)". A comment
+without the attachment is an incomplete post.
+
 Fixed-width **AC-coverage matrix** — one line per acceptance criterion, wrapped in
 a code fence so alignment holds in Jira. The HTML report carries all detail — keep
 the comment to the matrix.

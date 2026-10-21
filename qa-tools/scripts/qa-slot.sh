@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Auto slot detection for parallel fexa-qa instances.
+# Auto slot detection for parallel QA (TANGO) runs.
 #
 # Slot 0 = the user's DEV stack (Rails :3000 / fmdev / PWA :5173, main checkouts).
 # It is RESERVED: QA never claims it, even when idle (FEXA_QA_MIN_SLOT=1).
