@@ -19,6 +19,8 @@ jira-tickets/      Skill: list open-sprint tickets + render a ticket brief
   reference/       ADF→markdown rules; parked spec-mode conventions
   scripts/         jira-*.sh REST helpers (config-driven, no secrets inside)
 qa-tools/          NOT a skill: local helpers for running TANGO on this machine (see its README)
+  hooks/           tango-dev-guard.sh — Claude hook that blocks TANGO runs on the dev stack
+  tango-local/     CLAUDE.local.md copied into the TANGO clone (git-excluded, never committed)
   scripts/         qa-slot.sh (keeps QA off the dev stack), pwa-worktree.sh,
                    fexa-fast-mode.sh / fexa-dev-mode.sh (TANGO's copy fails on develop)
   notes/           PWA selector/timing notes, WSL notes, Jira QA-comment format
@@ -51,6 +53,8 @@ Machine-specific files (never in this repo):
 ~/.config/fexa-workflow/jira-token    Jira API token, one line, chmod 600
 ~/.claude/skills/{jira-tickets,pwa-pr-review}   symlinks into this repo
 ~/.dev-env.sh                         symlink to config/dev-env.sh (loaded by ~/.bashrc and BASH_ENV)
+~/.claude/settings.json hooks         tango-dev-guard (setup.sh adds it if missing)
+~/work/TANGO/CLAUDE.local.md          copy of qa-tools/tango-local/CLAUDE.local.md (excluded in .git/info/exclude)
 ~/.cache/fexa-workflow/reviews/       PR review work dirs (diff, anchors, findings)
 ~/work/TANGO/.env, ~/work/TANGO/auth/ test-account creds + session state (gitignored there)
 ```

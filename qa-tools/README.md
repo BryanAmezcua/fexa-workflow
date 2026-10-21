@@ -13,6 +13,15 @@ Commit TANGO work straight to TANGO `main`, as its maintainer does
 
 ## The one rule: QA never touches the dev stack
 
+Enforced, not just documented: `hooks/tango-dev-guard.sh` is a Claude Code hook registered
+in `~/.claude/settings.json` (user level — every session, whichever repo it starts in).
+It blocks any TANGO seed / `playwright test` / `qa:gate` / `cmms:ensure` / seed-via-`rails runner`
+whose command does not load the slot env and, when a database is involved, export
+`DATABASE_URL`. `tango-local/CLAUDE.local.md` is copied into the TANGO clone (git-excluded via
+`.git/info/exclude`, never committed) so Claude takes the isolated path by default.
+Both are installed by `bin/setup.sh` and checked by `bin/doctor.sh`. Commands you type
+yourself in a terminal are not covered.
+
 Slot 0 — Rails `:3000`, DB `fmdev`, PWA `:5173`, the main checkouts — is development.
 Every QA run takes slot ≥ 1 with its own Rails port, Redis port, PWA port and a cloned
 database. **Load the slot env in every shell before any TANGO command** (`npm run seed:*`,
@@ -79,6 +88,8 @@ bash ~/work/fexa-workflow/qa-tools/scripts/qa-slot.sh release
 
 | Path | What | Why it exists |
 |---|---|---|
+| `hooks/tango-dev-guard.sh` | PreToolUse hook (user settings) | blocks Claude's TANGO runs that are not on an isolated slot |
+| `tango-local/CLAUDE.local.md` | local rules copied into the TANGO clone | isolated slot by default; overrides qa-ticket's `:3000` check |
 | `scripts/qa-slot.sh` | slot claim/env/release/status | keeps QA off slot 0; candidate for a TANGO-side guard |
 | `scripts/pwa-worktree.sh` | isolated fexa-pwa worktree at `origin/qa` | parallel PWA runs |
 | `scripts/fexa-fast-mode.sh` / `fexa-dev-mode.sh` | Sencha prebuild + routes patch | TANGO's `bin/fexa-fast-mode.sh` targets a Sencha root missing on `develop` — upstream candidate |

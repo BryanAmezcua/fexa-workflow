@@ -79,6 +79,17 @@ else
   echo "[setup] ~/.claude/settings.json already exists — leaving it alone (compare with config/claude-settings.json)"
 fi
 
+# 2b. tango-dev-guard hook, registered at USER level so it guards every Claude session
+#     (whichever repo it was launched from): TANGO runs are blocked unless they target an
+#     isolated slot — never Rails :3000 / fmdev / :5173 (see qa-tools/README.md).
+GUARD_CMD="bash \"\$HOME/work/fexa-workflow/qa-tools/hooks/tango-dev-guard.sh\""
+if ! grep -q 'tango-dev-guard' "$HOME/.claude/settings.json" 2>/dev/null; then
+  tmp="$(mktemp)"
+  jq --arg c "$GUARD_CMD" '.hooks.PreToolUse = ((.hooks.PreToolUse // []) + [{"matcher":"Bash","hooks":[{"type":"command","command":$c}]}])' \
+    "$HOME/.claude/settings.json" > "$tmp" && mv "$tmp" "$HOME/.claude/settings.json"
+  echo "[setup] registered tango-dev-guard hook in ~/.claude/settings.json"
+fi
+
 # 3. Skill symlinks — repo stays the single source of truth; git pull updates them
 SKILLS_DIR="$HOME/.claude/skills"
 mkdir -p "$SKILLS_DIR"
@@ -133,6 +144,13 @@ if [ "$(git -C "$TANGO_PATH" branch --show-current)" != "main" ]; then
 elif [ -z "$(git -C "$TANGO_PATH" status --porcelain --untracked-files=no)" ]; then
   git -C "$TANGO_PATH" pull --rebase --quiet origin main && echo "[setup] TANGO main up to date"
 fi
+# Personal, never-committed TANGO files: local Claude rules + git's per-clone exclude list
+# (TANGO's own .gitignore is left untouched).
+cp "$ROOT/qa-tools/tango-local/CLAUDE.local.md" "$TANGO_PATH/CLAUDE.local.md"
+for pat in /CLAUDE.local.md /.claude/settings.local.json /.claude/worktrees/; do
+  grep -qxF "$pat" "$TANGO_PATH/.git/info/exclude" 2>/dev/null || echo "$pat" >> "$TANGO_PATH/.git/info/exclude"
+done
+echo "[setup] installed TANGO/CLAUDE.local.md (git-excluded locally, never committed)"
 cd "$TANGO_PATH"
 echo "[setup] installing TANGO deps (npm install)..."
 npm install

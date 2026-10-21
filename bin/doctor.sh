@@ -53,6 +53,12 @@ for s in jira-tickets pwa-pr-review; do
     && pass "skill $s linked" || fail "skill $s not linked" "run bin/setup.sh"
 done
 
+echo "QA guard (keeps TANGO off the dev stack)"
+grep -q 'tango-dev-guard' "$HOME/.claude/settings.json" 2>/dev/null \
+  && pass "tango-dev-guard hook registered" || fail "tango-dev-guard hook not in ~/.claude/settings.json" "run bin/setup.sh"
+echo '{"tool_input":{"command":"cd ~/work/TANGO && npm run seed:x"},"cwd":"/"}' | bash "$ROOT/qa-tools/hooks/tango-dev-guard.sh" 2>/dev/null
+[ $? -eq 2 ] && pass "hook blocks an unguarded TANGO seed" || fail "hook did not block an unguarded TANGO seed" "check qa-tools/hooks/tango-dev-guard.sh (needs jq)"
+
 echo "Repos"
 for r in Fexy-Zamo fexa-pwa TANGO; do
   [ -d "$WORK_DIR/$r/.git" ] && pass "$r cloned" || fail "$WORK_DIR/$r missing" "run bin/setup.sh (after gh auth login)"
@@ -61,6 +67,10 @@ if [ -d "$WORK_DIR/TANGO/.git" ]; then
   b="$(git -C "$WORK_DIR/TANGO" branch --show-current)"
   [ "$b" = "main" ] && pass "TANGO on main" || fail "TANGO on '$b' (want main)" "git -C $WORK_DIR/TANGO checkout main && git -C $WORK_DIR/TANGO pull --rebase"
   [ -f "$WORK_DIR/TANGO/.env" ] && pass "TANGO .env" || fail "no TANGO .env" "cp .env.example .env in TANGO and fill the creds"
+  cmp -s "$WORK_DIR/TANGO/CLAUDE.local.md" "$ROOT/qa-tools/tango-local/CLAUDE.local.md" \
+    && pass "TANGO CLAUDE.local.md current" || fail "TANGO CLAUDE.local.md missing or stale" "run bin/setup.sh"
+  git -C "$WORK_DIR/TANGO" check-ignore -q CLAUDE.local.md \
+    && pass "TANGO CLAUDE.local.md git-excluded" || fail "TANGO CLAUDE.local.md not excluded" "run bin/setup.sh"
 fi
 
 echo
